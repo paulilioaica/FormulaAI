@@ -6,94 +6,139 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
-public class CarDriverAgent : Agent {
+public class CarDriverAgent : Agent
+{
 
-    private Rigidbody agentRb;
-    private CheckpointSingle checkpointSingle;
-    private CarDriver carDriver; 
-    
-    [SerializeField] TrackCheckpoints trackCheckpoints;
+	private Rigidbody agentRb;
+	private CheckpointSingle checkpointSingle;
+	private CarDriver carDriver;
+	
+	private float startTime;
+	private float bestTime = float.MaxValue;
 
-    private void Awake() {
-        agentRb = GetComponent<Rigidbody>();
-        carDriver = GetComponent<CarDriver>();
-    }
+	public Text lapTimeText;
 
-    public override void CollectObservations(VectorSensor sensor){
-        CheckpointSingle checkpoint = trackCheckpoints.GetNextCheckpoint(transform);
-        Transform checkpointTransform = checkpoint.transform;
 
-        Vector3 checkpointDistance = checkpointTransform.position - transform.position;
+	[SerializeField] TrackCheckpoints trackCheckpoints;
 
-        sensor.AddObservation(agentRb.velocity);
-        sensor.AddObservation(checkpointDistance);
+	private void Awake()
+	{
+		agentRb = GetComponent<Rigidbody>();
+		carDriver = GetComponent<CarDriver>();
+	}
 
-        AddReward(-0.01f);
-    }
+	public override void CollectObservations(VectorSensor sensor)
+	{
+		CheckpointSingle checkpoint = trackCheckpoints.GetNextCheckpoint(transform);
+		Transform checkpointTransform = checkpoint.transform;
 
-    public override void OnEpisodeBegin() {
-        carDriver.SpawnPosition();
-        trackCheckpoints.ResetCheckpoint(transform);
-    }
+		Vector3 checkpointDistance = checkpointTransform.position - transform.position;
 
-    public override void OnActionReceived(ActionBuffers actionBuffers) {    
-        ActionSegment<float> continuousActions = actionBuffers.ContinuousActions;
+		sensor.AddObservation(agentRb.velocity);
+		sensor.AddObservation(checkpointDistance);
 
-        float horizontal = continuousActions[0];
-        float vertical = continuousActions[1];
+		AddReward(-0.01f);
+	}
 
-        carDriver.SetInputs(vertical, horizontal);
-    }
+	public override void OnEpisodeBegin()
+	{
+		carDriver.SpawnPosition();
+		trackCheckpoints.ResetCheckpoint(transform);
+		startTime = Time.time; // Record the start time of the lap  
+	}
 
-    public override void Heuristic(in ActionBuffers actionsOut) {
-        ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
+	public override void OnActionReceived(ActionBuffers actionBuffers)
+	{
+		ActionSegment<float> continuousActions = actionBuffers.ContinuousActions;
 
-        continuousActions[0] = Input.GetAxis("Horizontal");
-        continuousActions[1] = Input.GetAxis("Vertical");
-    }
+		float horizontal = continuousActions[0];
+		float vertical = continuousActions[1];
 
-    private void OnCollisionEnter(Collision collision){
-        if (collision.gameObject.TryGetComponent<Wall>(out Wall wall)) {
-            // Hit a wall 
-            AddReward(-0.5f);
-        }
-        if (collision.gameObject.TryGetComponent<CarDriver>(out CarDriver carDriver)) {
-            // Hit a car
-            AddReward(-0.4f);
-        }
-    }
+		carDriver.SetInputs(vertical, horizontal);
+	}
 
-    private void OnCollisionStay(Collision collision) {
-        if (collision.gameObject.TryGetComponent<Wall>(out Wall wall)){
-            // Hitting a wall 
-            AddReward(-0.005f);
-        }
-        if (collision.gameObject.TryGetComponent<CarDriver>(out CarDriver carDriver)) {
-            // Hitting a car
-            AddReward(-0.004f);
-        }
-    }
+	public override void Heuristic(in ActionBuffers actionsOut)
+	{
+		ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
 
-    private void OnTriggerEnter(Collider other){
-        bool isCorrect, isLastCheckpoint;
+		continuousActions[0] = Input.GetAxis("Horizontal");
+		continuousActions[1] = Input.GetAxis("Vertical");
+	}
 
-        if(other.gameObject.tag == "Checkpoint"){
-            checkpointSingle = other.GetComponent<CheckpointSingle>();
+	private void OnCollisionEnter(Collision collision)
+	{
+		if (collision.gameObject.TryGetComponent<Wall>(out Wall wall))
+		{
+			// Hit a wall 
+			AddReward(-0.09f);
+		}
+		if (collision.gameObject.TryGetComponent<CarDriver>(out CarDriver carDriver))
+		{
+			// Hit a car
+			AddReward(-0.09f);
+		}
+	}
 
-            isCorrect = checkpointSingle.IsCorrectCheckPoint(carDriver);
-            isLastCheckpoint = checkpointSingle.IsLastCheckpoint();
+	private void OnCollisionStay(Collision collision)
+	{
+		if (collision.gameObject.TryGetComponent<Wall>(out Wall wall))
+		{
+			// Hitting a wall 
+			AddReward(-0.01f);
+		}
+		if (collision.gameObject.TryGetComponent<CarDriver>(out CarDriver carDriver))
+		{
+			// Hitting a car
+			AddReward(-0.01f);
+		}
+	}
 
-            if(checkpointSingle != null && carDriver != null) {
-                if(isCorrect) {
-                    AddReward(+1f); 
-                    if(isLastCheckpoint) {
-                        AddReward(+2f);
-                    }
-                } else {
-                    AddReward(-0.05f); 
-                }
-            }
-        }
-    }
+
+	private void OnTriggerEnter(Collider other)
+	{
+		bool isCorrect, isLastCheckpoint;
+
+		if (other.gameObject.tag == "Checkpoint")
+		{
+			checkpointSingle = other.GetComponent<CheckpointSingle>();
+
+			isCorrect = checkpointSingle.IsCorrectCheckPoint(carDriver);
+			isLastCheckpoint = checkpointSingle.IsLastCheckpoint();
+
+			if (checkpointSingle != null && carDriver != null)
+			{
+				if (isCorrect)
+				{
+					AddReward(+5f);
+					if (isLastCheckpoint)
+					{
+						float lapTime = Time.time - startTime; // Calculate the lap time  
+						Debug.Log("Lap Time: " + lapTime.ToString("F2"));
+						if (lapTime < bestTime)
+						{
+							bestTime = lapTime;
+							AddReward(+50f); // Give a large reward for a new best time  
+						}
+						else if (lapTime < bestTime * 1.1f)
+						{
+							AddReward(+10f); // Give a smaller reward for a good time  
+						}
+						else
+						{
+							AddReward(-5f); // Give a penalty for a slow time  
+						}
+						startTime = Time.time;
+					}
+				}
+				else
+				{
+					AddReward(-0.05f);
+				}
+			}
+		}
+	}
+
+
 }
