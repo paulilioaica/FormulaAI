@@ -1,13 +1,31 @@
-# Intelligent Robotics Project
-## Academic project for the class "Intelligent Robotics"
-The aim was to build a system in which an agent can autonomously drive without colliding with objects like walls or other agents. The repository contains only the main Assets for the Unity project. Thus, in order to let all the things work you should:
-- Download [Unity](https://unity.com)
-- Install [MLAgents](https://github.com/Unity-Technologies/ml-agents)
-- Install [Racing Kit](https://www.kenney.nl/assets/racing-kit) as imported asset
-- Download the Assets directory from this repository and substitute the Assets directory of the empty project created in Unity
+# Formula AI
 
-The main scripts are the following:
-- `CarDriver.cs`: contains all the logic for the agent movement and physical update.
-- `CarDriverAgent.cs`: contains all the implementation of the Reinforment Learning life cycle; thus what to do at the beginning of the episod, on collect observations, on action received etc.
-- `TrackCheckpoints.cs`: the logic for tracking the correct path of each car in the circuit.
-- `CheckpointSingle.cs`: basic logic for each checkpoint.
+## WIP
+
+## Installation
+
+```bash
+git clone https://github.com/paulilioaica/FormulaAI
+conda create -n mlagents python=3.10.12 && conda activate mlagents
+cd FormulaAI
+git clone --branch release_21 https://github.com/Unity-Technologies/ml-agents.git
+pip install -r requirements.txt
+python -m pip install ./ml-agents-envs --no-deps numpy
+python -m pip install ./ml-agents --no-deps numpy
+``` 
+
+In order to start it, run the `TrainScene` in Unity version `2021.3.34f1`, then  =>
+```bash
+conda activate mlagents
+mlagents-learn CarPPO.yaml --run-id="test"
+```
+
+and press play in Unity to start the training.
+
+
+
+
+# Credits
+
+* Initial simulation by [monidp9](https://github.com/monidp9)
+* Graphics by [Kenney](https://www.kenney.nl/assets/racing-kit)
